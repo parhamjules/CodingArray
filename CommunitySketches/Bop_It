@@ -1,0 +1,180 @@
+// Arduino Bop-It
+// Author: Jules Parham
+// Used Modules:
+//    Red LED
+//    RGB LED
+//    1602 I2C LCD
+//    Slide Potentiometer
+//    Button
+//    Touch
+
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+LiquidCrystal_I2C lcd(0x27,16,2);
+
+int pinBuzzer = 6;
+int pinTouch = 7;
+int pinButton = 8;
+int pinRed = 9;
+int pinGreen = 10;
+int pinBlue = 11;
+int pinLed = 13;
+int pinSlide = A0;
+
+bool input;
+int cmd;
+int gamespeed = 2000;
+int count = 0;
+int starttime;
+int endtime;
+int curr = analogRead(pinSlide);
+
+void setup() {
+  // setting up screen module
+  lcd.init();
+  lcd.backlight();
+  // setting up pins
+  pinMode(pinTouch, INPUT);
+  pinMode(pinButton, INPUT);
+  pinMode(pinBuzzer, OUTPUT);
+  pinMode(pinRed, OUTPUT);
+  pinMode(pinGreen, OUTPUT);
+  pinMode(pinBlue, OUTPUT);
+  pinMode(pinLed, OUTPUT);
+}
+
+int colorSwitch() {
+  switch(count / 5) {
+    case 0: // green      
+      digitalWrite(pinGreen, HIGH);
+      break;
+    case 1: // cyan
+      digitalWrite(pinGreen, HIGH);
+      digitalWrite(pinBlue, HIGH);
+      break;
+    case 2: // blue
+      digitalWrite(pinBlue, HIGH);
+      break;
+    case 3: // yellow
+      digitalWrite(pinRed, HIGH);
+      digitalWrite(pinGreen, HIGH);
+      break;
+    case 4: // red
+      digitalWrite(pinRed, HIGH);
+      break;
+    case 5: // magenta
+      digitalWrite(pinRed, HIGH);
+      digitalWrite(pinBlue, HIGH);
+      break;
+    case 6: // white
+      digitalWrite(pinRed, HIGH);
+      digitalWrite(pinGreen, HIGH);
+      digitalWrite(pinBlue, HIGH);
+      break;
+  }
+}
+
+void strobe() {
+  if(count / 5 > 6) {
+    digitalWrite(pinRed, LOW);
+    digitalWrite(pinGreen, LOW);
+    digitalWrite(pinBlue, LOW);
+    int color = random(1,3);  
+    switch(color) {
+      case 1:
+        digitalWrite(pinRed, HIGH);
+        break;
+      case 2:
+        digitalWrite(pinGreen, HIGH);
+        break;
+      case 3:
+        digitalWrite(pinBlue, HIGH);
+        break;
+    }
+  }
+}
+
+int chooseCommand() {
+  cmd = random(1,4);
+   switch(cmd) {
+    case 1:
+      lcd.println("TOUCH IT");
+      starttime = millis();
+      endtime = starttime;
+      while(endtime - starttime < gamespeed) {
+        if(digitalRead(pinTouch)){
+          input = true;
+          break;
+        }
+        strobe();
+        endtime = millis();
+      }
+      break;
+    case 2:
+      lcd.println("PUSH IT");
+      starttime = millis();
+      endtime = starttime;
+      while(endtime - starttime < gamespeed) {
+        if(digitalRead(pinButton)){
+          input = true;
+          break;
+        }
+        strobe();
+        endtime = millis();
+      }
+      break;
+    case 3:
+      lcd.println("SLIDE IT");
+      starttime = millis();
+      endtime = starttime;
+      curr = analogRead(pinSlide);
+      while(endtime - starttime < gamespeed) {
+        if(analogRead(pinSlide) > (curr + 100) || analogRead(pinSlide) < (curr - 100)) {
+          input = true;
+          break;
+        }
+        strobe();
+        endtime = millis();
+      }
+  }
+}
+
+void loop() {
+  // setting default input state
+  input = false;
+  // set rgb color
+  if(count / 5 < 7) {
+    colorSwitch();
+  }
+  // increasing loop count
+  count++;
+  // choose command
+  chooseCommand();
+  // turning on LED
+  digitalWrite(pinLed, HIGH);
+  // end game if input remains false
+  if(input == false) {
+    lcd.clear();
+    lcd.println("YOU LOSE ");
+    lcd.print(count);
+    delay(2000);
+    exit(0);
+  }
+  // turning off LED
+  digitalWrite(pinLed,LOW);
+  // clearing screen
+  lcd.clear();
+  // decreasing loop delay every 5 runs
+  if(count % 5 == 0){
+    lcd.println("SPEED UP");
+    delay(750);
+    lcd.clear();
+    digitalWrite(pinRed, LOW);
+    digitalWrite(pinGreen, LOW);
+    digitalWrite(pinBlue, LOW);
+   gamespeed -= 200; 
+  }
+  // delay until next run
+  delay(gamespeed / 2);
+}
